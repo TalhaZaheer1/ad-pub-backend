@@ -11,7 +11,7 @@
     "migrate:reset": "prisma migrate reset",
     "seed": "node src/database/seed.js",
     "studio": "prisma studio",
-    "generate": "prisma generate"
+    "generate": "prisma generate",
     "prod": "npm run generate && npm run migrate && npm run seed"
   },
   "dependencies": {

@@ -14,6 +14,9 @@ const logger = require('./config/logger');
 
 const app = express();
 
+// Trust proxy for Render/Cloudflare/Heroku rate limiting
+app.set('trust proxy', 1);
+
 // ─── Security middleware ──────────────────────────────────
 app.use(helmet());
 app.use(

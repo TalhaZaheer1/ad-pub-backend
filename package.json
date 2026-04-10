@@ -12,7 +12,8 @@
     "seed": "node src/database/seed.js",
     "studio": "prisma studio",
     "generate": "prisma generate",
-    "prod": "npm run generate && npm run migrate && npm run seed"
+    "prod": "npm run generate && npm run migrate && npm run seed",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.11.0",

@@ -171,14 +171,10 @@ const registerCompany = async (data) => {
 
     // ─── Seed Default AdSizes ───────────────────────────
     const defaultSizes = [
-      { name: 'FULL_PAGE', width: 210, height: 297, variant: 'BIG' },
-      { name: 'FULL_PAGE', width: 180, height: 250, variant: 'SMALL' },
-      { name: 'HALF_PAGE', width: 210, height: 148, variant: 'BIG' },
-      { name: 'HALF_PAGE', width: 180, height: 120, variant: 'SMALL' },
-      { name: 'QUARTER_PAGE', width: 105, height: 148, variant: 'BIG' },
-      { name: 'QUARTER_PAGE', width: 85, height: 120, variant: 'SMALL' },
-      { name: 'ONE_EIGTH_PAGE', width: 105, height: 74, variant: 'BIG' },
-      { name: 'ONE_EIGTH_PAGE', width: 85, height: 60, variant: 'SMALL' },
+      { name: 'FULL_PAGE', widthBig: 210, heightBig: 297, widthSmall: 180, heightSmall: 250 },
+      { name: 'HALF_PAGE', widthBig: 210, heightBig: 148, widthSmall: 180, heightSmall: 120 },
+      { name: 'QUARTER_PAGE', widthBig: 105, heightBig: 148, widthSmall: 85, heightSmall: 120 },
+      { name: 'ONE_EIGTH_PAGE', widthBig: 105, heightBig: 74, widthSmall: 85, heightSmall: 60 },
     ];
 
     await Promise.all(

@@ -12,7 +12,7 @@
     "seed": "node src/database/seed.js",
     "studio": "prisma studio",
     "generate": "prisma generate",
-    "prod": "npm run generate && npm run migrate && npm run seed",
+    "prod": "npm run generate && npm run migrate",
     "postinstall": "prisma generate"
   },
   "dependencies": {

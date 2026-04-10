@@ -10,24 +10,198 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AnnouncementTemplateLanguage {
+  ENGLISH
+  HEBREW
+  YIDDISH
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  WAIVED
+  NOT_REQUIRED
+}
+
 enum Role {
   SUPER_ADMIN
-  ADMIN
+  COMPANY_ADMIN
   SALES
   DESIGNER
   PRODUCTION
+}
+
+enum PricingRuleType {
+  BASE_RATE
+  SURCHARGE
+  DISCOUNT
+  OVERRIDE_LIMIT
+  TAX
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  PARTIAL
+  OVERDUE
+  REFUNDED
+  WAIVED
+}
+
+enum PaymentMethod {
+  STRIPE
+  BANK_TRANSFER
+  CREDIT_CARD
+  CHECK
+  CASH
+  OTHER
+}
+
+enum PaymentRecordCreationMethod {
+  STAFF
+  CUSTOMER
+  SYSTEM
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PublicationIssueStatus {
+  SCHEDULED
+  OPEN
+  IN_PROGRESS
+  READY
+  LOCKED
+  PRINTED
+  PUBLISHED
+  ARCHIVED
+  DEADLINE_PASSED
+}
+
+enum CustomerType {
+  INDIVISUAL
+  BUSINESS
+  AGENCY
+  NON_PROFIT
+}
+
+enum PublicationFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SPECIAL
+}
+
+// Removed static AdSize enum, replaced with dynamic AdSize model below.
+
+enum AdArea {
+  COVER_PAGE
+  INTERIOR_LEFT
+  INTERIOR_RIGHT
+  CLASSIFIED_SECTION
+  BACK_COVER
+}
+
+enum AdStatus {
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  READY
+  PRINTED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DesignStatus {
+  NOT_STARTED
+  QUEUED
+  IN_DESIGN
+  NEEDS_CONTENT
+  CONTENT_ADDED
+  NEEDS_REVIEW
+  APPROVED
+}
+
+enum AdOrientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
+enum AdColorProfile {
+  FULL_COLOR
+  GRAYSCALE
+  BLACK_WHITE
+}
+
+enum PostingMethod {
+  CUSTOMER_UPLOAD
+  EMPLOYEE_UPLOAD
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  PENDING // Registered but not yet verified / approved
+}
+
+enum LayoutVariant {
+  BIG
+  SMALL
+}
+
+enum LeadStatus {
+  COLD_LEAD
+  PROSPECT
+  ACTIVE
+  INACTIVE_CHURNED
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  SYSTEM_STATUS_CHANGE
+  ORDER_PLACED
+}
+
+enum OperationalTag {
+  PAID
+  FREE
+  FILLER
+  EXCHANGE
 }
 
 model Company {
   id        String   @id @default(uuid())
   name      String
   slug      String   @unique
+  timezone  String   @default("UTC")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users      User[]
-  auditLogs  AuditLog[]
+  users                 User[]
+  customers             Customer[]
+  auditLogs             AuditLog[]
+  publicationTypes      PublicationType[]
+  adUnits               AdUnit[]
+  publicationIssues     PublicationIssue[]
+  customersOnCompanies  CustomersOnCompany[]
+  adTypes               AdType[]
+  announcementTemplates AnnouncementTemplate[]
+  pricingRules          PricingRule[]
+  companyCustomers      CompanyCustomer[]
+  invoices              Invoice[]
+  adSizes               AdSize[]
+
+  invoiceSeq Int @default(0) @map("invoice_seq")
 
   @@map("companies")
 }
@@ -44,14 +218,118 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  company       Company?       @relation(fields: [companyId], references: [id])
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  company                   Company?                  @relation(fields: [companyId], references: [id])
+  refreshTokens             RefreshToken[]
+  auditLogs                 AuditLog[]
+  adUnits                   AdUnit[]
+  createdAds                AdUnit[]                  @relation("AdCreatedBy")
+  designedAds               AdUnit[]                  @relation("AdDesignedBy")
+  verifiedAds               AdUnit[]                  @relation("AdVerifiedBy")
+  assignedCustomers         CompanyCustomer[]         @relation("CustomerRep")
+  companyCustomerActivities CompanyCustomerActivity[]
+  createdInvoices           Invoice[]                 @relation("InvoiceCreatedBy")
+  recordedPayments          InvoicePayment[]          @relation("PaymentRecordedBy")
 
   @@index([companyId])
   @@index([email])
   @@index([role])
   @@map("users")
+}
+
+// Customers are end-users of the publication companies.
+// They are NOT staff members — completely separate from the User entity.
+model Customer {
+  id           String         @id @default(uuid())
+  firstName    String         @map("first_name")
+  lastName     String         @map("last_name")
+  email        String         @unique
+  passwordHash String?        @map("password_hash")
+  phone        String?
+  businessName String?        @map("business_name") // The customer's own company/brand name
+  customerType CustomerType   @default(BUSINESS) @map("customer_type")
+  address      String?
+  status       CustomerStatus @default(PENDING)
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  companies             Company[]
+  customerRefreshTokens CustomerRefreshToken[]
+  customersOnCompanies  CustomersOnCompany[]
+  companyCustomers      CompanyCustomer[]
+
+  @@index([email])
+  @@index([status])
+  @@map("customers")
+}
+
+model CustomersOnCompany {
+  customerId    String   @map("customer_id")
+  companyId     String   @map("company_id")
+  lastOrder     DateTime @map("last_order") @db.Date
+  lifetimeValue Decimal  @map("lifetime_value") @db.Decimal(10, 2)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, companyId])
+  @@map("customers_on_companies")
+}
+
+model CompanyCustomer {
+  id               String  @id @default(uuid())
+  companyId        String  @map("company_id")
+  globalCustomerId String? @map("global_customer_id")
+  assignedRepId    String? @map("assigned_rep_id")
+
+  firstName    String       @map("first_name")
+  lastName     String       @map("last_name")
+  email        String?
+  phone        String?
+  businessName String?      @map("business_name")
+  address      String?
+  customerType CustomerType @default(BUSINESS) @map("customer_type")
+
+  tags       String[]
+  leadStatus LeadStatus @default(PROSPECT) @map("lead_status")
+  isActive   Boolean    @default(true) @map("is_active")
+
+  totalAdsPlaced     Int       @default(0) @map("total_ads_placed")
+  lifetimeValue      Decimal   @default(0) @map("lifetime_value") @db.Decimal(10, 2)
+  outstandingBalance Decimal   @default(0) @map("outstanding_balance") @db.Decimal(10, 2)
+  lastOrderDate      DateTime? @map("last_order_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  globalCustomer Customer? @relation(fields: [globalCustomerId], references: [id], onDelete: SetNull)
+  assignedRep    User?     @relation("CustomerRep", fields: [assignedRepId], references: [id], onDelete: SetNull)
+
+  adUnits    AdUnit[]
+  activities CompanyCustomerActivity[]
+  invoices   Invoice[]
+
+  @@unique([companyId, email])
+  @@index([companyId, leadStatus])
+  @@map("company_customers")
+}
+
+model CompanyCustomerActivity {
+  id                String  @id @default(uuid())
+  companyCustomerId String  @map("company_customer_id")
+  userId            String? @map("user_id")
+
+  type    ActivityType
+  content String       @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  customer CompanyCustomer @relation(fields: [companyCustomerId], references: [id], onDelete: Cascade)
+  user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyCustomerId])
+  @@map("company_customer_activities")
 }
 
 model RefreshToken {
@@ -65,6 +343,20 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// Separate refresh token table for customers
+model CustomerRefreshToken {
+  id         String   @id @default(uuid())
+  customerId String   @map("customer_id")
+  tokenHash  String   @unique @map("token_hash")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_refresh_tokens")
 }
 
 model AuditLog {
@@ -84,4 +376,310 @@ model AuditLog {
   @@index([companyId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model PublicationType {
+  id        String               @id @default(uuid())
+  companyId String               @map("company_id")
+  name      String
+  frequency PublicationFrequency @default(WEEKLY)
+
+  defaultPublishDay  String? @map("default_publish_day")
+  defaultPublishDate Int?    @map("default_publish_date")
+  isActive           Boolean @default(false)
+
+  specialPublicationDate DateTime? @map("special_publication_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  publicationIssues PublicationIssue[]
+  pricingRules      PricingRule[]
+
+  @@map("publication_types")
+}
+
+model PublicationIssue {
+  id                String   @id @default(uuid())
+  companyId         String   @map("company_id")
+  publicationTypeId String   @map("publication_type_id")
+  title             String
+  issueDate         DateTime @map("issue_date") @db.Date
+  hebrewDate        String   @map("hebrew_date")
+  deadlineAt        DateTime @map("deadline_at")
+  isLocked          Boolean  @default(false) @map("is_locked")
+  notes             String?
+
+  status PublicationIssueStatus @default(SCHEDULED)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  publicationType PublicationType @relation(fields: [publicationTypeId], references: [id], onDelete: Cascade)
+  adUnits         AdUnit[]
+
+  @@map("publication_issues")
+}
+
+model AdType {
+  id          String  @id @default(uuid())
+  companyId   String  @map("company_id")
+  name        String
+  slug        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ads                   AdUnit[]
+  announcementTemplates AnnouncementTemplate[]
+  pricingRules          PricingRule[]
+
+  @@unique([companyId, slug])
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+  @@map("ad_types")
+}
+
+model AnnouncementTemplate {
+  id        String  @id @default(uuid())
+  companyId String  @map("company_id")
+  adTypeId  String? @map("ad_type_id")
+
+  name        String
+  slug        String
+  description String?
+
+  subjectLine     String?                      @map("subject_line")
+  templateContent String                       @map("template_content")
+  language        AnnouncementTemplateLanguage @default(ENGLISH)
+
+  isActive  Boolean @default(true) @map("is_active")
+  isDefault Boolean @default(false) @map("is_default")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  adType  AdType?  @relation(fields: [adTypeId], references: [id], onDelete: SetNull)
+  ads     AdUnit[]
+
+  @@unique([companyId, slug])
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+  @@index([companyId, adTypeId])
+  @@map("announcement_templates")
+}
+
+model AdUnit {
+  id                 String  @id @default(uuid())
+  companyId          String  @map("company_id")
+  customerId         String? @map("customer_id")
+  createdById        String? @map("created_by_id")
+  designedById       String? @map("designed_by_id")
+  verifiedById       String? @map("verified_by_id")
+  publicationIssueId String  @map("publication_issue_id")
+  adTypeId           String? @map("ad_type_id")
+  templateId         String? @map("template_id")
+
+  postingMethod      PostingMethod    @default(EMPLOYEE_UPLOAD) @map("posting_method")
+  status             AdStatus         @default(IN_REVIEW)
+  designStatus       DesignStatus     @default(NOT_STARTED) @map("design_status")
+  lastDesignActionAt DateTime?        @map("last_design_action_at")
+  paymentStatus      PaymentStatus    @default(PENDING) @map("payment_status")
+  operationalTags    OperationalTag[] @map("operational_tags")
+
+  adSizeName      String?        @map("ad_size_name")
+  hasBigVariant   Boolean        @default(true) @map("has_big_variant")
+  hasSmallVariant Boolean        @default(false) @map("has_small_variant")
+  area            AdArea         @default(COVER_PAGE)
+  orientation     AdOrientation  @default(PORTRAIT)
+  colorProfile    AdColorProfile @default(FULL_COLOR) @map("color_profile")
+
+  layoutVariant LayoutVariant? @map("layout_variant")
+  priority      Int            @default(0)
+  deadline      DateTime?      @db.Date
+
+  title               String?
+  bodyText            String? @map("body_text")
+  specialInstructions String? @map("special_instructions")
+
+  finalPrice Decimal @map("final_price") @db.Decimal(8, 2)
+  partialPaymentAmount Decimal? @map("partial_payment_amount") @db.Decimal(8, 2)
+
+  referenceCode String?  @unique @map("reference_code")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customer         CompanyCustomer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdBy        User?                 @relation("AdCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  designedBy       User?                 @relation("AdDesignedBy", fields: [designedById], references: [id], onDelete: SetNull)
+  verifiedBy       User?                 @relation("AdVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  publicationIssue PublicationIssue      @relation(fields: [publicationIssueId], references: [id], onDelete: Restrict)
+  adType           AdType?               @relation(fields: [adTypeId], references: [id], onDelete: SetNull)
+  template         AnnouncementTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  User             User?                 @relation(fields: [userId], references: [id])
+  userId           String?
+
+  invoice Invoice?
+
+  pricingBreakdown AdUnitPricing[]
+  assets           AdAsset[]
+
+  @@index([companyId, publicationIssueId])
+  @@index([companyId, customerId])
+  @@index([companyId, status])
+  @@map("ad_units")
+}
+
+model AdUnitPricing {
+  id       String  @id @default(uuid())
+  adUnitId String  @map("ad_unit_id")
+  ruleId   String? @map("rule_id")
+
+  name   String
+  amount Decimal @db.Decimal(8, 2)
+  type   String // BASE, SURCHARGE, DISCOUNT, TAX
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  adUnit AdUnit @relation(fields: [adUnitId], references: [id], onDelete: Cascade)
+
+  @@map("ad_unit_pricing")
+}
+
+model AdAsset {
+  id        String  @id @default(uuid())
+  adUnitId  String  @map("ad_unit_id")
+  assetRole String  @map("asset_role") // 'SOURCE', 'FINAL_PDF', 'INDESIGN_SNIPPET'
+  url       String
+  format    String?
+  filename  String?
+  publicId  String? @map("public_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  adUnit AdUnit @relation(fields: [adUnitId], references: [id], onDelete: Cascade)
+
+  @@index([adUnitId])
+  @@map("ad_assets")
+}
+
+model PricingRule {
+  id          String          @id @default(uuid())
+  companyId   String          @map("company_id")
+  name        String
+  description String?
+  ruleType    PricingRuleType @map("rule_type")
+
+  publicationTypeId String?         @map("publication_type_id")
+  adTypeId          String?         @map("ad_type_id")
+  adSizeName        String?         @map("ad_size_name")
+  area              AdArea?
+  colorProfile      AdColorProfile? @map("color_profile")
+
+  condition    Json?
+  discountType DiscountType? @map("discount_type")
+  value        Decimal       @db.Decimal(8, 2)
+  priority     Int           @default(0)
+
+  effectiveFrom DateTime  @default(now()) @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  isActive      Boolean   @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  publicationType PublicationType? @relation(fields: [publicationTypeId], references: [id], onDelete: SetNull)
+  adType          AdType?          @relation(fields: [adTypeId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, isActive, effectiveFrom, effectiveTo])
+  @@index([publicationTypeId])
+  @@index([adTypeId])
+  @@map("pricing_rules")
+}
+
+model Invoice {
+  id                 String  @id @default(uuid())
+  companyId          String  @map("company_id")
+  companyCustomerId  String  @map("company_customer_id")
+  adUnitId           String? @unique @map("ad_unit_id")
+  publicationIssueId String? @map("publication_issue_id")
+  createdById        String? @map("created_by_id")
+
+  invoiceNumber String    @map("invoice_number")
+  issueDate     DateTime  @default(now()) @map("issue_date") @db.Date
+  dueDate       DateTime? @map("due_date") @db.Date
+
+  baseAmount       Decimal @map("base_amount") @db.Decimal(10, 2)
+  taxAmount        Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount      Decimal @map("total_amount") @db.Decimal(10, 2)
+  paidAmount       Decimal @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  remainingBalance Decimal @map("remaining_balance") @db.Decimal(10, 2)
+
+  status InvoiceStatus @default(OPEN)
+
+  sentAt     DateTime? @map("sent_at")
+  paidAt     DateTime? @map("paid_at")
+  refundedAt DateTime? @map("refunded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer  CompanyCustomer  @relation(fields: [companyCustomerId], references: [id], onDelete: Restrict)
+  adUnit    AdUnit?          @relation(fields: [adUnitId], references: [id], onDelete: SetNull)
+  createdBy User?            @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  payments  InvoicePayment[]
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, status])
+  @@index([companyCustomerId])
+  @@map("invoices")
+}
+
+model InvoicePayment {
+  id              String        @id @default(uuid())
+  invoiceId       String        @map("invoice_id")
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentDate     DateTime      @default(now()) @map("payment_date")
+  paymentMethod   PaymentMethod @map("payment_method")
+  referenceNumber String?       @map("reference_number")
+  proofAssetUrl   String?       @map("proof_asset_url")
+  recordedById    String?       @map("recorded_by_id")
+  paymentRecordCreationMethod PaymentRecordCreationMethod @default(STAFF) @map("payment_record_creation_method")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedBy User?   @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@map("invoice_payments")
+}
+
+model AdSize {
+  id          String @id @default(uuid())
+  companyId   String @map("company_id")
+  name        String
+  widthBig    Float  @map("width_big")
+  heightBig   Float  @map("height_big")
+  widthSmall  Float  @map("width_small")
+  heightSmall Float  @map("height_small")
+  unit        String @default("mm")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@map("ad_sizes")
 }

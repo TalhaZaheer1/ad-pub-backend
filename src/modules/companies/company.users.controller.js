@@ -13,8 +13,8 @@ const resolveCompany = async (companyId, requestingUser) => {
     const company = await prisma.company.findUnique({ where: { id: companyId } });
     if (!company) throw new AppError('Company not found.', 404);
 
-    // ADMIN can only manage their own company's users
-    if (requestingUser.role === 'ADMIN' && requestingUser.companyId !== companyId) {
+    // COMPANY_ADMIN can only manage their own company's users
+    if (requestingUser.role === 'COMPANY_ADMIN' && requestingUser.companyId !== companyId) {
         throw new AppError('Access denied. You can only manage users in your own company.', 403);
     }
     return company;
@@ -91,12 +91,12 @@ const deleteUserInCompany = asyncHandler(async (req, res) => {
     await createAuditLog({
         userId: req.user.id,
         companyId,
-        action: 'USER_DEACTIVATED',
+        action: 'USER_DELETED',
         entityType: 'User',
         entityId: user.id,
     });
 
-    sendSuccess(res, user, 'User deactivated successfully.');
+    sendSuccess(res, user, 'User deleted successfully.');
 });
 
 module.exports = { getUsersInCompany, createUserInCompany, updateUserInCompany, deleteUserInCompany };

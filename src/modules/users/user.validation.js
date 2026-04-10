@@ -1,6 +1,6 @@
 const Joi = require('joi');
 
-const ROLES = ['SUPER_ADMIN', 'ADMIN', 'SALES', 'DESIGNER', 'PRODUCTION'];
+const ROLES = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'SALES', 'DESIGNER', 'PRODUCTION'];
 
 const createUserSchema = Joi.object({
     firstName: Joi.string().trim().min(1).max(100).required().messages({

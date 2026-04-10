@@ -3,8 +3,8 @@ const { hashPassword } = require('../../utils/hash');
 const AppError = require('../../utils/AppError');
 const prisma = require('../../config/database');
 
-// Roles that ADMIN can create (cannot create SUPER_ADMIN or another ADMIN)
-const ADMIN_ALLOWED_ROLES = ['SALES', 'DESIGNER', 'PRODUCTION'];
+// Roles that COMPANY_ADMIN can create (can also create other COMPANY_ADMINs)
+const COMPANY_ADMIN_ALLOWED_ROLES = ['COMPANY_ADMIN', 'SALES', 'DESIGNER', 'PRODUCTION'];
 
 /**
  * Get all users — SUPER_ADMIN sees all, ADMIN sees only their company
@@ -47,17 +47,17 @@ const getUserById = async (id, requestingUser) => {
 const createUser = async (data, requestingUser) => {
     const { role, companyId, password, ...rest } = data;
 
-    // Enforce ADMIN restrictions
-    if (requestingUser.role === 'ADMIN') {
-        if (!ADMIN_ALLOWED_ROLES.includes(role)) {
-            throw new AppError(`Admin can only create users with roles: ${ADMIN_ALLOWED_ROLES.join(', ')}.`, 403);
+    // Enforce COMPANY_ADMIN restrictions
+    if (requestingUser.role === 'COMPANY_ADMIN') {
+        if (!COMPANY_ADMIN_ALLOWED_ROLES.includes(role)) {
+            throw new AppError(`Company admin can only create users with roles: ${COMPANY_ADMIN_ALLOWED_ROLES.join(', ')}.`, 403);
         }
         // Force user into requesting admin's company
         data.companyId = requestingUser.companyId;
     }
 
     // Validate companyId exists (if provided)
-    const resolvedCompanyId = requestingUser.role === 'ADMIN' ? requestingUser.companyId : companyId;
+    const resolvedCompanyId = requestingUser.role === 'COMPANY_ADMIN' ? requestingUser.companyId : companyId;
     if (resolvedCompanyId) {
         const company = await prisma.company.findUnique({ where: { id: resolvedCompanyId } });
         if (!company) throw new AppError('Company not found.', 404);
@@ -85,14 +85,20 @@ const createUser = async (data, requestingUser) => {
 const updateUser = async (id, data, requestingUser) => {
     const user = await getUserById(id, requestingUser);
 
-    // ADMIN cannot escalate roles
-    if (requestingUser.role === 'ADMIN' && data.role && !ADMIN_ALLOWED_ROLES.includes(data.role)) {
-        throw new AppError(`Admin can only assign roles: ${ADMIN_ALLOWED_ROLES.join(', ')}.`, 403);
+    // COMPANY_ADMIN cannot escalate roles
+    if (requestingUser.role === 'COMPANY_ADMIN' && data.role && !COMPANY_ADMIN_ALLOWED_ROLES.includes(data.role)) {
+        throw new AppError(`Company admin can only assign roles: ${COMPANY_ADMIN_ALLOWED_ROLES.join(', ')}.`, 403);
     }
 
     const updateData = { ...data };
 
     if (data.password) {
+        if (user.role === 'COMPANY_ADMIN' || user.role === 'SUPER_ADMIN') {
+            throw new AppError('Password of a Company Admin or Super Admin cannot be changed by another user.', 403);
+        }
+        if (requestingUser.role !== 'COMPANY_ADMIN' && requestingUser.role !== 'SUPER_ADMIN') {
+            throw new AppError('You do not have permission to change user passwords.', 403);
+        }
         updateData.passwordHash = await hashPassword(data.password);
         delete updateData.password;
     }
@@ -107,17 +113,21 @@ const updateUser = async (id, data, requestingUser) => {
 };
 
 /**
- * Soft delete (deactivate) a user
+ * Delete a user
  */
 const deleteUser = async (id, requestingUser) => {
     await getUserById(id, requestingUser);
 
     // Prevent self-deletion
     if (id === requestingUser.id) {
-        throw new AppError('You cannot deactivate your own account.', 400);
+        throw new AppError('You cannot delete your own account.', 400);
     }
 
-    return userRepo.softDelete(id);
+    if (requestingUser.role !== 'COMPANY_ADMIN' && requestingUser.role !== 'SUPER_ADMIN') {
+        throw new AppError('Only Company Admin can delete users.', 403);
+    }
+
+    return userRepo.remove(id);
 };
 
 module.exports = { getAllUsers, getUserById, createUser, updateUser, deleteUser };

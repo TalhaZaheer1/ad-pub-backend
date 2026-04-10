@@ -69,7 +69,7 @@ const remove = asyncHandler(async (req, res) => {
         entityId: user.id,
     });
 
-    sendSuccess(res, user, 'User deactivated successfully.');
+    sendSuccess(res, user, 'User deleted successfully.');
 });
 
 module.exports = { getAll, getOne, create, update, remove };

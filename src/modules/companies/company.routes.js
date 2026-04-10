@@ -78,7 +78,7 @@ router.post('/', authorize('SUPER_ADMIN'), validate(createCompanySchema), compan
  *           type: string
  *           format: uuid
  */
-router.get('/:id', authorize('SUPER_ADMIN', 'ADMIN'), companyController.getOne);
+router.get('/:id', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), companyController.getOne);
 
 /**
  * @swagger
@@ -138,7 +138,7 @@ router.delete('/:id', authorize('SUPER_ADMIN'), companyController.remove);
  *                 stats:
  *                   totalUsers: 12
  *                   usersByRole:
- *                     ADMIN: 2
+ *                     COMPANY_ADMIN: 2
  *                     SALES: 5
  *                     DESIGNER: 3
  *                     PRODUCTION: 2
@@ -151,7 +151,7 @@ router.delete('/:id', authorize('SUPER_ADMIN'), companyController.remove);
  *       404:
  *         description: Company not found
  */
-router.get('/:id/overview', authorize('SUPER_ADMIN', 'ADMIN'), dashboardController.getOverview);
+router.get('/:id/overview', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), dashboardController.getOverview);
 
 /**
  * @swagger
@@ -176,7 +176,7 @@ router.get('/:id/overview', authorize('SUPER_ADMIN', 'ADMIN'), dashboardControll
  *           default: 20
  *           maximum: 50
  */
-router.get('/:id/activity', authorize('SUPER_ADMIN', 'ADMIN'), dashboardController.getActivity);
+router.get('/:id/activity', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), dashboardController.getActivity);
 
 // ─── Company-Scoped User Management ──────────────────────
 
@@ -185,7 +185,7 @@ router.get('/:id/activity', authorize('SUPER_ADMIN', 'ADMIN'), dashboardControll
  * /api/companies/{id}/users:
  *   get:
  *     summary: Get users within a company
- *     description: SUPER_ADMIN can access any company; ADMIN can only access their own.
+ *     description: SUPER_ADMIN can access any company; COMPANY_ADMIN can only access their own.
  *     tags: [Companies]
  *     security:
  *       - bearerAuth: []
@@ -201,7 +201,7 @@ router.get('/:id/activity', authorize('SUPER_ADMIN', 'ADMIN'), dashboardControll
  *         schema:
  *           type: boolean
  */
-router.get('/:id/users', authorize('SUPER_ADMIN', 'ADMIN'), companyUsersController.getUsersInCompany);
+router.get('/:id/users', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), companyUsersController.getUsersInCompany);
 
 /**
  * @swagger
@@ -210,7 +210,7 @@ router.get('/:id/users', authorize('SUPER_ADMIN', 'ADMIN'), companyUsersControll
  *     summary: Create a user within a company
  *     description: |
  *       SUPER_ADMIN can assign any role.
- *       ADMIN can only create SALES, DESIGNER, PRODUCTION users in their own company.
+ *       COMPANY_ADMIN can create COMPANY_ADMIN, SALES, DESIGNER, PRODUCTION users in their own company.
  *       The companyId is taken from the URL path — any companyId in the body is ignored.
  *     tags: [Companies]
  *     security:
@@ -240,11 +240,11 @@ router.get('/:id/users', authorize('SUPER_ADMIN', 'ADMIN'), companyUsersControll
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [ADMIN, SALES, DESIGNER, PRODUCTION]
+ *                 enum: [COMPANY_ADMIN, SALES, DESIGNER, PRODUCTION]
  */
 router.post(
     '/:id/users',
-    authorize('SUPER_ADMIN', 'ADMIN'),
+    authorize('SUPER_ADMIN', 'COMPANY_ADMIN'),
     validateUser(createUserSchema),
     companyUsersController.createUserInCompany
 );
@@ -260,7 +260,7 @@ router.post(
  */
 router.patch(
     '/:id/users/:userId',
-    authorize('SUPER_ADMIN', 'ADMIN'),
+    authorize('SUPER_ADMIN', 'COMPANY_ADMIN'),
     validateUser(updateUserSchema),
     companyUsersController.updateUserInCompany
 );
@@ -276,7 +276,7 @@ router.patch(
  */
 router.delete(
     '/:id/users/:userId',
-    authorize('SUPER_ADMIN', 'ADMIN'),
+    authorize('SUPER_ADMIN', 'COMPANY_ADMIN'),
     companyUsersController.deleteUserInCompany
 );
 

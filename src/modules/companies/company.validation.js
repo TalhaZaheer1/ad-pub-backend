@@ -26,6 +26,7 @@ const updateCompanySchema = Joi.object({
         .min(2)
         .max(100)
         .pattern(/^[a-z0-9-]+$/),
+    timezone: Joi.string().trim().max(100),
     isActive: Joi.boolean(),
 }).min(1).messages({ 'object.min': 'At least one field must be provided for update.' });
 

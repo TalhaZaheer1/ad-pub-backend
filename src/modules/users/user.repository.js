@@ -55,10 +55,10 @@ const update = (id, data) => {
 };
 
 /**
- * Soft delete (deactivate) user
+ * Hard delete user
  */
-const softDelete = (id) => {
-    return prisma.user.update({ where: { id }, data: { isActive: false }, select: USER_SELECT });
+const remove = (id) => {
+    return prisma.user.delete({ where: { id }, select: USER_SELECT });
 };
 
-module.exports = { findAll, findById, findByEmail, create, update, softDelete, USER_SELECT };
+module.exports = { findAll, findById, findByEmail, create, update, remove, USER_SELECT };

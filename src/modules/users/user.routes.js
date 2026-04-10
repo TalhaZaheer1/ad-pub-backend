@@ -20,7 +20,7 @@ router.use(authenticate);
  * @swagger
  * /api/users:
  *   get:
- *     summary: Get all users (SUPER_ADMIN sees all; ADMIN sees own company)
+ *     summary: Get all users (SUPER_ADMIN sees all; COMPANY_ADMIN sees own company)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -37,9 +37,9 @@ router.use(authenticate);
  *           type: boolean
  *     responses:
  *       200:
- *         description: List of users
+ *         description: A list of users.
  */
-router.get('/', authorize('SUPER_ADMIN', 'ADMIN'), userController.getAll);
+router.get('/', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), userController.getAll);
 
 /**
  * @swagger
@@ -50,7 +50,7 @@ router.get('/', authorize('SUPER_ADMIN', 'ADMIN'), userController.getAll);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authorize('SUPER_ADMIN', 'ADMIN'), userController.getOne);
+router.get('/:id', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), userController.getOne);
 
 /**
  * @swagger
@@ -79,7 +79,7 @@ router.get('/:id', authorize('SUPER_ADMIN', 'ADMIN'), userController.getOne);
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [SUPER_ADMIN, ADMIN, SALES, DESIGNER, PRODUCTION]
+ *                 enum: [SUPER_ADMIN, COMPANY_ADMIN, SALES, DESIGNER, PRODUCTION]
  *               companyId:
  *                 type: string
  *                 format: uuid
@@ -89,7 +89,7 @@ router.get('/:id', authorize('SUPER_ADMIN', 'ADMIN'), userController.getOne);
  *       409:
  *         description: Email already exists
  */
-router.post('/', authorize('SUPER_ADMIN', 'ADMIN'), validate(createUserSchema), userController.create);
+router.post('/', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), validate(createUserSchema), userController.create);
 
 /**
  * @swagger
@@ -100,7 +100,7 @@ router.post('/', authorize('SUPER_ADMIN', 'ADMIN'), validate(createUserSchema), 
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', authorize('SUPER_ADMIN', 'ADMIN'), validate(updateUserSchema), userController.update);
+router.patch('/:id', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), validate(updateUserSchema), userController.update);
 
 /**
  * @swagger
@@ -111,6 +111,6 @@ router.patch('/:id', authorize('SUPER_ADMIN', 'ADMIN'), validate(updateUserSchem
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), userController.remove);
+router.delete('/:id', authorize('SUPER_ADMIN', 'COMPANY_ADMIN'), userController.remove);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const AppError = require('../utils/AppError');
+const { Role } = require('@prisma/client');
 
 /**
  * Company scope middleware.
@@ -14,7 +15,7 @@ const companyScope = (req, res, next) => {
     }
 
     // SUPER_ADMIN bypasses company isolation
-    if (req.user.role === 'SUPER_ADMIN') {
+    if (req.user.role === Role.SUPER_ADMIN) {
         req.companyId = req.params.companyId || req.user.companyId || null;
         return next();
     }
